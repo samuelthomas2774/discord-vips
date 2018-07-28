@@ -187,12 +187,12 @@ module.exports = (Plugin, { Api: PluginApi, Utils, CssUtils, WebpackModules, Pat
 
                     if (!thisObject.state.rows._rows[0] || !user) continue;
 
-                    let mutualGuilds = [];
+                    const mutualGuilds = [];
                     for (let guild of DiscordApi.guilds) {
                         if (guild.isMember(id)) mutualGuilds.push(guild.discordObject);
                     }
 
-                    let objectRow = new (thisObject.state.rows._rows[0].constructor)({
+                    const objectRow = new (thisObject.state.rows._rows[0].constructor)({
                         activity: WebpackModules.UserStatusStore.getActivity(id),
                         key: `vips-${group.name}-${id}`,
                         mutualGuilds: mutualGuilds.slice(0, 5),
@@ -204,9 +204,9 @@ module.exports = (Plugin, { Api: PluginApi, Utils, CssUtils, WebpackModules, Pat
                     });
                     objectRow.__vips_group = group;
 
-                    let found = thisObject.state.rows._rows.find(row => row.key === objectRow.key && row.type === objectRow.type && row.__vips_group === group);
-                    if (!found) thisObject.state.rows._rows.push(objectRow);
-                    else Object.assign(found, objectRow);
+                    const found = thisObject.state.rows._rows.find(row => row.key === objectRow.key && row.type === objectRow.type && row.__vips_group === group);
+                    if (found) Object.assign(found, objectRow);
+                    else thisObject.state.rows._rows.push(objectRow);
 
                     // for (let row of thisObject.state.rows._rows) {
                     //     if (!group.members.some(id => (row.type === 99 && row.key === id && row.__vips_group === group)) || (row.type !== 99)) {
@@ -219,7 +219,7 @@ module.exports = (Plugin, { Api: PluginApi, Utils, CssUtils, WebpackModules, Pat
                 if (!group.members.length) {
                     for (let row of thisObject.state.rows._rows) {
                         if (row.type !== 99 || row.__vips_group !== group) continue;
-                        let index = thisObject.state.rows._rows.indexOf(row);
+                        const index = thisObject.state.rows._rows.indexOf(row);
                         if (index > -1) thisObject.state.rows._rows.splice(index, 1);
                     }
                 }
@@ -241,13 +241,15 @@ module.exports = (Plugin, { Api: PluginApi, Utils, CssUtils, WebpackModules, Pat
 
             if (!thisObject.state.section.startsWith('vips-')) return;
 
-            let VIPs = [];
+            const VIPs = [];
             for (let row of thisObject.state.rows._rows) {
                 if (row.type === 99 && thisObject.state.section.startsWith('vips-') && row.__vips_group && (thisObject.state.section.substr(5) === row.__vips_group.name)) VIPs.push(row);
             }
 
-            let Row = returnValue.props.children[1].props.children[1].props.children.props.children[0].type
-                   || returnValue.props.children[1].props.children[1].props.children[0].type;
+            VIPs.sort((a, b) => a.usernameLower > b.usernameLower ? 1 : b.usernameLower > a.usernameLower ? -1 : 0);
+
+            const Row = returnValue.props.children[1].props.children[1].props.children.props.children[0].type
+                     || returnValue.props.children[1].props.children[1].props.children[0].type;
             if (!Row) return;
 
             if (returnValue.props.children[1].props.children[1].props.children.props.children) {
