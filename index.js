@@ -41,6 +41,65 @@ module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monk
         return this.saveConfiguration();
     }
 
+    get groups() {
+        return this.data.groups || (this.data.groups = []);
+    }
+
+    getGroup(name) {
+        return this.groups.find(g => g.name === name);
+    }
+
+    async addGroup(name) {
+        if (this.groups.find(g => g.name === name)) return;
+        const group = this.groups.push({name, members: []});
+
+        for (let friends of document.querySelectorAll('#friends')) {
+            Reflection(friends).forceUpdate();
+        }
+
+        await this.saveConfiguration();
+        return group;
+    }
+
+    removeGroup(group) {
+        if (!this.groups.includes(group)) return;
+        Utils.removeFromArray(this.groups, group);
+
+        for (let friends of document.querySelectorAll('#friends')) {
+            Reflection(friends).forceUpdate();
+        }
+
+        return this.saveConfiguration();
+    }
+
+    isGroupMember(group, id) {
+        return this.groups.includes(group) && group.members.includes(id);
+    }
+
+    addToGroup(group, id) {
+        if (!this.groups.includes(group)) return;
+        if (group.members.includes(id)) return;
+        group.members.push(id);
+
+        for (let friends of document.querySelectorAll('#friends')) {
+            Reflection(friends).forceUpdate();
+        }
+
+        return this.saveConfiguration();
+    }
+
+    removeFromGroup(group, id) {
+        if (!this.groups.includes(group)) return;
+        if (!group.members.includes(id)) return;
+        Utils.removeFromArray(group.members, id);
+
+        for (let friends of document.querySelectorAll('#friends')) {
+            Reflection(friends).forceUpdate();
+        }
+
+        return this.saveConfiguration();
+    }
+
     async patchFriends() {
         const Friends = WebpackModules.getModuleByDisplayName('Friends');
         // const Friends = await ReactComponents.getComponent('Friends', {selector: '#friends'});
@@ -50,63 +109,70 @@ module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monk
         monkeyPatch(Friends.prototype).after('render', (thisObject, args, returnValue, setReturnValue) => {
             Logger.log('Friends render called', thisObject, args, returnValue);
 
-            for (let id of this.vips) {
-                // const user = WebpackModules.UserStore.getUser(id);
-                const user = DiscordApi.User.fromId(id);
-
-                if (!thisObject.state.rows._rows[0] || !user) continue;
-
-                let mutualGuilds = [];
-                // for (let guild of Object.values(WebpackModules.GuildStore.getGuilds())) {
-                //     if (WebpackModules.GuildMemberStore.isMember(guild.id, id)) mutualGuilds.push(guild);
-                // }
-                for (let guild of DiscordApi.guilds) {
-                    if (guild.isMember(id)) mutualGuilds.push(guild.discordObject);
-                }
-
-                let objectRow = new (thisObject.state.rows._rows[0].constructor)({
-                    activity: WebpackModules.UserStatusStore.getActivity(id),
-                    key: id,
-                    mutualGuilds: mutualGuilds.slice(0, 5),
-                    mutualGuildsLength: mutualGuilds.length,
-                    status: WebpackModules.UserStatusStore.getStatus(id),
-                    type: 99,
-                    user: user.discordObject,
-                    usernameLower: user.usernameLowerCase
-                });
-
-                let found = thisObject.state.rows._rows.find(row => row.key === objectRow.key && row.type === objectRow.type);
-                if (!found) thisObject.state.rows._rows.push(objectRow);
-                else Object.assign(found, objectRow);
-
-                for (let row of thisObject.state.rows._rows) {
-                    if (!this.vips.some(id => (row.type === 99 && row.key === id)) || (row.type !== 99)) {
-                        let index = thisObject.state.rows._rows.indexOf(row);
-                        // if (index > -1) thisObject.state.rows._rows.splice(index, 1);
-                    }
-                }
-            }
-
-            if (!this.vips.length) {
-                for (let row of thisObject.state.rows._rows) {
-                    if (row.type !== 99) continue;
-                    let index = thisObject.state.rows._rows.indexOf(row);
-                    if (index > -1) thisObject.state.rows._rows.splice(index, 1);
-                }
-            }
-
             let sections = returnValue.props.children[0].props.children.props.children;
             sections.push(sections[1]);
-            const vipTab = WebpackModules.React.cloneElement(sections[2], {children: 'VIP'});
-            vipTab.key = 'VIP';
-            sections.push(vipTab);
+
+            for (let group of [{
+                name: 'VIP',
+                members: this.vips
+            }].concat(this.groups)) {
+                for (let id of group.members) {
+                    const user = DiscordApi.User.fromId(id);
+
+                    if (!thisObject.state.rows._rows[0] || !user) continue;
+
+                    let mutualGuilds = [];
+                    for (let guild of DiscordApi.guilds) {
+                        if (guild.isMember(id)) mutualGuilds.push(guild.discordObject);
+                    }
+
+                    let objectRow = new (thisObject.state.rows._rows[0].constructor)({
+                        activity: WebpackModules.UserStatusStore.getActivity(id),
+                        key: `vips-${group.name}-${id}`,
+                        mutualGuilds: mutualGuilds.slice(0, 5),
+                        mutualGuildsLength: mutualGuilds.length,
+                        status: WebpackModules.UserStatusStore.getStatus(id),
+                        type: 99,
+                        user: user.discordObject,
+                        usernameLower: user.usernameLowerCase
+                    });
+                    objectRow.__vips_group = group;
+
+                    let found = thisObject.state.rows._rows.find(row => row.key === objectRow.key && row.type === objectRow.type && row.__vips_group === group);
+                    if (!found) thisObject.state.rows._rows.push(objectRow);
+                    else Object.assign(found, objectRow);
+
+                    for (let row of thisObject.state.rows._rows) {
+                        if (!group.members.some(id => (row.type === 99 && row.key === id && row.__vips_group === group)) || (row.type !== 99)) {
+                            let index = thisObject.state.rows._rows.indexOf(row);
+                            // if (index > -1) thisObject.state.rows._rows.splice(index, 1);
+                        }
+                    }
+                }
+
+                if (!group.members.length) {
+                    for (let row of thisObject.state.rows._rows) {
+                        if (row.type !== 99 || row.__vips_group !== group) continue;
+                        let index = thisObject.state.rows._rows.indexOf(row);
+                        if (index > -1) thisObject.state.rows._rows.splice(index, 1);
+                    }
+                }
+
+                let sections = returnValue.props.children[0].props.children.props.children;
+                // sections.push(sections[1]);
+                const vipTab = WebpackModules.React.cloneElement(sections[2], {children: group.name});
+                vipTab.key = `vips-${group.name}`;
+                sections.push(vipTab);
+            }
+
+            if (!thisObject.state.section.startsWith('vips-')) return;
 
             let VIPs = [];
             for (let row of thisObject.state.rows._rows) {
-                if (row.type === 99) VIPs.push(row);
+                if (row.type === 99 && thisObject.state.section.startsWith('vips-') && row.__vips_group && (thisObject.state.section.substr(5) === row.__vips_group.name)) VIPs.push(row);
             }
 
-            if (thisObject.state.section !== 'VIP') return;
+            Logger.log('VIPs:', VIPs);
 
             let Row = returnValue.props.children[1].props.children[1].props.children.props.children[0].type
                    || returnValue.props.children[1].props.children[1].props.children[0].type;
@@ -182,8 +248,7 @@ module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monk
                     return PluginApi.plugin[this.selected ? 'removeVIP' : 'addVIP'](this.user.id);
                 }
             },
-            // template: `<div class="VIP" :class="{selected}" @click="toggle" style="-webkit-mask-image: url('https://cdn.iconscout.com/public/images/icon/free/png-24/star-bookmark-favorite-shape-rank-like-378019f0b9f54bcf-24x24.png'); cursor: pointer; height: 24px; margin-left: 8px; width: 24px;" :style="{backgroundColor: selected ? '#fac02e' : '#fff'}"></div>`
-            template: `<div class="VIP" :class="{selected}" @click="toggle" style="cursor: pointer; margin-left: 8px;" :style="{fill: selected ? '#fac02e' : '#fff'}">
+            template: `<div class="VIP" :class="{selected}" @click.stop="toggle" style="cursor: pointer; margin-left: 8px;" :style="{fill: selected ? '#fac02e' : '#fff'}">
                 <mi-star :size="24" />
             </div>`
         };
