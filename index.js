@@ -119,8 +119,8 @@ module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monk
         // const Friends = await ReactComponents.getComponent('Friends', {selector: '#friends'});
 
         monkeyPatch(Friends.prototype).after('render', (thisObject, args, returnValue, setReturnValue) => {
-            let sections = returnValue.props.children[0].props.children.props.children;
-            sections.push(sections[1]);
+            const tabbarItems = returnValue.props.children[0].props.children.props.children;
+            tabbarItems.push(tabbarItems[1]);
 
             for (let group of [{
                 name: 'VIP',
@@ -168,11 +168,12 @@ module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monk
                     }
                 }
 
-                let sections = returnValue.props.children[0].props.children.props.children;
-                const vipTab = WebpackModules.React.cloneElement(sections[2], {children: group.name});
+                const vipTab = WebpackModules.React.cloneElement(tabbarItems[2], {children: group.name});
                 vipTab.key = `vips-${group.name}`;
-                sections.push(vipTab);
+                tabbarItems.push(vipTab);
             }
+
+            tabbarItems.push(VueInjector.createReactElement(this.AddGroupButton));
 
             if (!thisObject.state.section.startsWith('vips-')) return;
 
@@ -225,6 +226,59 @@ module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monk
                 user: component.props.user
             }));
         });
+    }
+
+    async showAddGroupModal() {
+        const set = PluginApi.Settings.createSet();
+        set.headertext = 'Add group';
+
+        const category = await set.addCategory('default');
+        const setting = await category.addSetting({
+            id: 'group-name',
+            type: 'text',
+            text: 'Group name',
+            hint: 'Enter a name for the new group',
+            value: ''
+        });
+
+        const modal = PluginApi.Modals.settings(set);
+
+        // The settings modal will clone the set and merge it into the original later by default
+        // Wait until it's merged into the original
+        await Promise.race([
+            set.once('settings-updated'),
+            // Make sure the close event always throws
+            modal.once('closed').then(() => {throw 'closed'})
+        ]);
+
+        Logger.log('Creating group', setting.value, set);
+
+        set.setSaved();
+
+        // For some reason the set doesn't get marked as saved properly
+        // For now we can force close the modal to bypass the unsaved changes warning
+        modal.close(true);
+
+        // TODO: maybe add a message when a group already exists?
+        return this.addGroup(setting.value);
+    }
+
+    get AddGroupButton() {
+        if (this._AddGroupButton) return this._AddGroupButton;
+
+        return this._AddGroupButton = {
+            components: {
+                MiPlus: CommonComponents.MiPlus
+            },
+            methods: {
+                addGroup() {
+                    return PluginApi.plugin.showAddGroupModal();
+                }
+            },
+            template: `<div @click="addGroup" style="cursor: pointer; margin-left: 8px; fill: #fff;">
+                <mi-plus :size="18" />
+            </div>`
+        }
     }
 
     get VIPIcon() {
