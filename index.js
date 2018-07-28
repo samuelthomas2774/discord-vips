@@ -15,17 +15,22 @@ module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monk
     }
 
     get bridge() {
-        return this._bridge || (this._bridge = {
+        return {
             get vips() { return Utils.deepclone(PluginApi.plugin.vips) },
+            getVIPs: () => this.vips.map(id => DiscordApi.User.fromId(id) || id),
             addVIP: this.addVIP.bind(this),
             removeVIP: this.removeVIP.bind(this),
+            get groups() { return Utils.deepclone(PluginApi.plugin.groups) },
             getGroup: name => Utils.deepclone(this.getGroup(name)),
             addGroup: async name => Utils.deepclone(await this.addGroup(name)),
             removeGroup: group => this.removeGroup(this.getGroup(group.name)),
+            getGroupMembers: group => group = this.getGroup(group.name) && group.members.map(id => DiscordApi.User.fromId(id) || id),
             isGroupMember: (group, id) => this.isGroupMember(this.getGroup(group.name), id),
             addToGroup: (group, id) => this.addToGroup(this.getGroup(group.name), id),
-            removeFromGroup: (group, id) => this.removeFromGroup(this.getGroup(group.name), id)
-        });
+            removeFromGroup: (group, id) => this.removeFromGroup(this.getGroup(group.name), id),
+            getUserGroups: id => Utils.deepclone(this.groups.filter(g => g.members.includes(id))),
+            setUserGroups: (id, groups) => this.setUserGroups(id, groups.map(g => this.getGroup(g.name)))
+        };
     }
 
     get vips() {
