@@ -1,5 +1,3 @@
-let userModal;
-
 module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monkeyPatch, Reflection, ReactComponents, Logger, VueInjector, Toasts, DiscordApi, CommonComponents }, Vendor) => class VIPs extends Plugin {
 
     onstart() {
@@ -123,53 +121,6 @@ module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monk
             }
         });
 
-        /*
-        Patcher.instead(Friends.prototype, 'componentDidUpdate', (thisObject, args) => {
-            let vipRowNumber = 0;
-            if (thisObject.state.section !== 'VIP') return;
-
-            for (let row of thisObject.state.rows._rows) {
-                if (row.type !== 99) continue;
-
-                let additionalActions = document.querySelectorAll('.friends-column-actions-visible')[vipRowNumber];
-                let wrapper = document.createElement('div');
-                wrapper.innerHTML = `<div class="VIP" style="-webkit-mask-image: url('https://cdn.iconscout.com/public/images/icon/free/png-24/star-bookmark-favorite-shape-rank-like-378019f0b9f54bcf-24x24.png'); cursor: pointer; height: 24px; margin-left: 8px; width: 24px; background-color: #fff;"></div>`;
-
-                if (additionalActions && additionalActions.childNodes.length == 0) {
-                    additionalActions.appendChild(wrapper.firstChild);
-                }
-
-                let vip = additionalActions.querySelector('.VIP');
-                if (!vip) continue;
-
-                let id = row.user.id;
-
-                if (this.vips.includes(id)) {
-                    vip.classList.add('selected');
-                    vip.style.backgroundColor = '#fac02e';
-                }
-
-                if (userModal && document.querySelectorAll('.friends-column-actions-visible').length != 1) {
-                    if (document.querySelectorAll('.friends-column-actions-visible').length - 2 == vipRowNumber) userModal = false;
-                } else {
-                    vip.addEventListener('click', e => {
-                        e.stopPropagation();
-                        if (vip.classList.contains('selected')) {
-                            this.removeVIP(id);
-                            vip.classList.remove('selected');
-                            vip.style.backgroundColor = '#fff';
-                        } else {
-                            this.addVIP(id);
-                            vip.classList.add('selected');
-                            vip.style.backgroundColor = '#fac02e';
-                        }
-                    });
-                }
-
-                vipRowNumber++;
-            }
-        }); //*/
-
         for (let friends of document.querySelectorAll('#friends')) {
             Reflection(friends).forceUpdate();
         }
@@ -178,7 +129,6 @@ module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monk
     }
 
     async patchFriendRow() {
-        // const Friends = WebpackModules.getModuleByDisplayName('Friends');
         const FriendRow = await ReactComponents.getComponent('FriendRow', {selector: '.friends-row'}, c => c.prototype.handleOpenProfile);
 
         Logger.log('FriendRow', global._FriendRow = FriendRow);
@@ -190,6 +140,10 @@ module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monk
                 user: component.props.user
             }));
         });
+
+        for (let friendRow of document.querySelectorAll('.friends-row')) {
+            Reflection(friendRow).forceUpdate();
+        }
     }
 
     async patchUserProfileModal() {
@@ -233,49 +187,6 @@ module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monk
                 <mi-star :size="24" />
             </div>`
         };
-    }
-
-    modalObserver(mutation) {
-        let popout = document.querySelector('.noWrap-3jynv6.root-SR8cQa');
-        let actions = document.querySelector('.additionalActionsIcon-1FoUlE');
-
-        if (!popout || !actions) return;
-
-        let id = Reflection(popout).props.user.id;
-
-        let wrapper = document.createElement('div');
-        wrapper.innerHTML = `<div class="VIP" style="-webkit-mask-image: url('https://cdn.iconscout.com/public/images/icon/free/png-24/star-bookmark-favorite-shape-rank-like-378019f0b9f54bcf-24x24.png'); cursor: pointer; height: 24px; margin-left: 8px; width: 24px; background-color: #fff;"></div>`;
-
-        // DOMUtilities.insertAfter(wrapper.firstChild, actions);
-        // wrapper.firstChild.insertBefore(actions, wrapper.firstChild.nextElementSibling);
-        actions.parentElement.insertBefore(wrapper.firstChild, actions.nextElementSibling);
-
-        let vip = popout.querySelector('.VIP');
-        if (!vip) return;
-
-        if (this.vips.includes(id)) {
-            vip.classList.add('selected');
-            vip.style.backgroundColor = '#fac02e';
-        }
-
-        vip.addEventListener('click', () => {
-            if (this.vips.includes(id)) {
-                this.removeVIP(id);
-                vip.classList.remove('selected');
-                vip.style.backgroundColor = '#fff';
-            } else {
-                this.addVIP(id);
-                vip.classList.add('selected');
-                vip.style.backgroundColor = '#fac02e';
-            }
-
-            if (document.querySelector('.friends-table') && (userModal = true)){
-                for (let friends of document.querySelectorAll('.friends-table')) {
-                    Reflection(friends).forceUpdate();
-                }
-                userModal = false;
-            }
-        });
     }
 
 };
