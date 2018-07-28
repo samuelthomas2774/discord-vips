@@ -15,7 +15,7 @@
                 "twitter_username": "_samuelelliott"
             }
         ],
-        "version": "1.0.0",
+        "version": "2.0.0",
         "description": "Adds an extra section to the friends list where you can add your most important contacts on Discord (Bots included). Add users by right clicking their name, opening their profile and then clicking on the star."
     }
 }
