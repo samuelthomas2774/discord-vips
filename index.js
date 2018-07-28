@@ -33,6 +33,7 @@ module.exports = (Plugin, { Api: PluginApi, Utils, CssUtils, WebpackModules, Pat
             get groups() { return Utils.deepclone(PluginApi.plugin.groups) },
             getGroup: name => Utils.deepclone(this.getGroup(name)),
             addGroup: async name => Utils.deepclone(await this.addGroup(name)),
+            showGroup: group => this.showGroup(this.getGroup(group.name)),
             removeGroup: group => this.removeGroup(this.getGroup(group.name)),
             getGroupMembers: group => group = this.getGroup(group.name) && group.members.map(id => DiscordApi.User.fromId(id) || id),
             isGroupMember: (group, id) => this.isGroupMember(this.getGroup(group.name), id),
@@ -41,6 +42,15 @@ module.exports = (Plugin, { Api: PluginApi, Utils, CssUtils, WebpackModules, Pat
             getUserGroups: id => Utils.deepclone(this.groups.filter(g => g.members.includes(id))),
             setUserGroups: (id, groups) => this.setUserGroups(id, groups.map(g => this.getGroup(g.name)))
         };
+    }
+
+    /**
+     * Switches to the friends list.
+     * @param {String} section The section to switch to (optional, see DiscordConstants.FriendsSections)
+     */
+    showFriends(section) {
+        WebpackModules.NavigationUtils.transitionTo('/channels/@me');
+        if (section) WebpackModules.getModulesByProperties('setSection').find(m => !m.open).setSection(section);
     }
 
     get vips() {
@@ -88,6 +98,11 @@ module.exports = (Plugin, { Api: PluginApi, Utils, CssUtils, WebpackModules, Pat
 
         await this.saveConfiguration();
         return group;
+    }
+
+    showGroup(group) {
+        if (!this.groups.includes(group)) return;
+        this.showFriends(`vips-${group.name}`);
     }
 
     removeGroup(group) {
