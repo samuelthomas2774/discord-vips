@@ -114,6 +114,32 @@ module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monk
         return this.saveConfiguration();
     }
 
+    setUserGroups(id, groups) {
+        let changed = false;
+
+        for (let group of this.groups) {
+            // User is not in group but should be
+            if (groups.includes(group) && !group.members.includes(id)) {
+                group.members.push(id);
+                changed = true;
+            }
+
+            // User is in group but shouldn't be
+            if (!groups.includes(group) && group.members.includes(id)) {
+                Utils.removeFromArray(group.members, id);
+                changed = true;
+            }
+        }
+
+        if (!changed) return;
+
+        for (let friends of document.querySelectorAll('#friends')) {
+            Reflection(friends).forceUpdate();
+        }
+
+        return this.saveConfiguration();
+    }
+
     async patchFriends() {
         const Friends = WebpackModules.getModuleByDisplayName('Friends');
         // const Friends = await ReactComponents.getComponent('Friends', {selector: '#friends'});
@@ -283,7 +309,7 @@ module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monk
                     return PluginApi.plugin.showAddGroupModal();
                 }
             },
-            template: `<div @click="addGroup" style="cursor: pointer; margin-left: 8px; fill: #fff;">
+            template: `<div @click="addGroup" style="cursor: pointer; margin-left: 8px; fill: #fff;" v-tooltip="'Create group'">
                 <mi-plus :size="18" />
             </div>`
         }
@@ -311,12 +337,56 @@ module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monk
             methods: {
                 toggle() {
                     return PluginApi.plugin[this.selected ? 'removeVIP' : 'addVIP'](this.user.id);
+                },
+                showGroups() {
+                    return PluginApi.plugin.showGroupsModal(this.user.id);
                 }
             },
-            template: `<div class="VIP" :class="{selected}" @click.stop="toggle" style="cursor: pointer; margin: 0 8px;" :style="{fill: selected ? '#fac02e' : '#fff'}">
+            template: `<div class="VIP" :class="{selected}" @click.stop="toggle" @contextmenu.stop="showGroups" style="cursor: pointer; margin: 0 8px;" :style="{fill: selected ? '#fac02e' : '#fff'}" v-tooltip="'Right click to add to other groups'">
                 <mi-star :size="24" />
             </div>`
         };
+    }
+
+    async showGroupsModal(user_id) {
+        const user = DiscordApi.User.fromId(user_id);
+
+        const set = PluginApi.Settings.createSet();
+        set.headertext = `${user.tag}'s groups`;
+
+        const category = await set.addCategory('default');
+        const setting = await category.addSetting({
+            id: 'groups',
+            type: 'radio',
+            // text: 'Groups',
+            multi: true,
+            fullwidth: true,
+            value: this.groups.filter(g => g.members.includes(user_id)).map(g => g.name),
+            options: this.groups.map(g => ({
+                id: g.name,
+                text: g.name,
+                value: g.name
+            }))
+        });
+
+        const modal = PluginApi.Modals.settings(set);
+
+        // The settings modal will clone the set and merge it into the original later by default
+        // Wait until it's merged into the original
+        await Promise.race([
+            set.once('settings-updated'),
+            // Make sure the close event always throws
+            modal.once('closed').then(() => {throw 'closed'})
+        ]);
+
+        Logger.log('Updating user groups', setting.value, set);
+
+        set.setSaved();
+        // For some reason the set doesn't get marked as saved properly
+        // For now we can force close the modal to bypass the unsaved changes warning
+        modal.close(true);
+
+        return this.setUserGroups(user_id, setting.value.map(name => this.getGroup(name)));
     }
 
 };
