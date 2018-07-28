@@ -20,7 +20,7 @@ module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monk
             addVIP: this.addVIP.bind(this),
             removeVIP: this.removeVIP.bind(this),
             getGroup: name => Utils.deepclone(this.getGroup(name)),
-            addGroup: name => Utils.deepclone(this.addGroup(name)),
+            addGroup: async name => Utils.deepclone(await this.addGroup(name)),
             removeGroup: group => this.removeGroup(this.getGroup(group.name)),
             isGroupMember: (group, id) => this.isGroupMember(this.getGroup(group.name), id),
             addToGroup: (group, id) => this.addToGroup(this.getGroup(group.name), id),
@@ -118,11 +118,7 @@ module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monk
         const Friends = WebpackModules.getModuleByDisplayName('Friends');
         // const Friends = await ReactComponents.getComponent('Friends', {selector: '#friends'});
 
-        Logger.log('Friends', global._Friends = Friends);
-
         monkeyPatch(Friends.prototype).after('render', (thisObject, args, returnValue, setReturnValue) => {
-            Logger.log('Friends render called', thisObject, args, returnValue);
-
             let sections = returnValue.props.children[0].props.children.props.children;
             sections.push(sections[1]);
 
@@ -210,11 +206,7 @@ module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monk
     async patchFriendRow() {
         const FriendRow = await ReactComponents.getComponent('FriendRow', {selector: '.friends-row'}, c => c.prototype.handleOpenProfile);
 
-        Logger.log('FriendRow', global._FriendRow = FriendRow);
-
         monkeyPatch(FriendRow.component.prototype).after('render', (component, args, retVal, setReturnValue) => {
-            Logger.log('FriendRow render called', component, args, retVal);
-
             retVal.props.children[3].props.children.push(VueInjector.createReactElement(this.VIPIcon, {
                 user: component.props.user
             }));
@@ -228,10 +220,8 @@ module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monk
     async patchUserProfileModal() {
         const UserProfileModal = await ReactComponents.getComponent('UserProfileModal');
 
-        Logger.log('Found UserProfileModal', UserProfileModal);
-
         monkeyPatch(UserProfileModal.component.prototype).after('renderHeader', (component, args, retVal) => {
-            retVal.props.children.push(VueInjector.createReactElement(this.VIPIcon, {
+            retVal.props.children.splice(2, 0, VueInjector.createReactElement(this.VIPIcon, {
                 user: component.props.user
             }));
         });
@@ -261,7 +251,7 @@ module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monk
                     return PluginApi.plugin[this.selected ? 'removeVIP' : 'addVIP'](this.user.id);
                 }
             },
-            template: `<div class="VIP" :class="{selected}" @click.stop="toggle" style="cursor: pointer; margin-left: 8px;" :style="{fill: selected ? '#fac02e' : '#fff'}">
+            template: `<div class="VIP" :class="{selected}" @click.stop="toggle" style="cursor: pointer; margin: 0 8px;" :style="{fill: selected ? '#fac02e' : '#fff'}">
                 <mi-star :size="24" />
             </div>`
         };
