@@ -14,6 +14,20 @@ module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monk
         }
     }
 
+    get bridge() {
+        return this._bridge || (this._bridge = {
+            get vips() { return Utils.deepclone(PluginApi.plugin.vips) },
+            addVIP: this.addVIP.bind(this),
+            removeVIP: this.removeVIP.bind(this),
+            getGroup: name => Utils.deepclone(this.getGroup(name)),
+            addGroup: name => Utils.deepclone(this.addGroup(name)),
+            removeGroup: group => this.removeGroup(this.getGroup(group.name)),
+            isGroupMember: (group, id) => this.isGroupMember(this.getGroup(group.name), id),
+            addToGroup: (group, id) => this.addToGroup(this.getGroup(group.name), id),
+            removeFromGroup: (group, id) => this.removeFromGroup(this.getGroup(group.name), id)
+        });
+    }
+
     get vips() {
         if (!this.data.vips) this.data.vips = ['391543027052838913', '249746236008169473'];
         return this.data.vips;
@@ -159,7 +173,6 @@ module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monk
                 }
 
                 let sections = returnValue.props.children[0].props.children.props.children;
-                // sections.push(sections[1]);
                 const vipTab = WebpackModules.React.cloneElement(sections[2], {children: group.name});
                 vipTab.key = `vips-${group.name}`;
                 sections.push(vipTab);
