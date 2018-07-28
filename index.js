@@ -1,12 +1,22 @@
-module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monkeyPatch, Reflection, ReactComponents, Logger, VueInjector, Toasts, DiscordApi, CommonComponents }, Vendor) => class VIPs extends Plugin {
+module.exports = (Plugin, { Api: PluginApi, Utils, CssUtils, WebpackModules, Patcher, monkeyPatch, Reflection, ReactComponents, Logger, VueInjector, Toasts, DiscordApi, CommonComponents }, Vendor) => class VIPs extends Plugin {
 
     onstart() {
+        CssUtils.injectStyle(`#friends .tab-bar {
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+
+        #friends .tab-bar::-webkit-scrollbar {
+            height: 0;
+        }`);
+
         this.patchFriends();
         this.patchFriendRow();
         this.patchUserProfileModal();
     }
 
     onstop() {
+        CssUtils.deleteAllStyles();
         Patcher.unpatchAll();
 
         for (let friends of document.querySelectorAll('#friends')) {
