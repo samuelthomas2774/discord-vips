@@ -44,7 +44,7 @@ module.exports = (Plugin, { Api: PluginApi, Utils, CssUtils, WebpackModules, Pat
     }
 
     get vips() {
-        if (!this.data.vips) this.data.vips = ['391543027052838913', '249746236008169473'];
+        if (!this.data.vips) this.data.vips = [];
         return this.data.vips;
     }
 
@@ -193,12 +193,12 @@ module.exports = (Plugin, { Api: PluginApi, Utils, CssUtils, WebpackModules, Pat
                     if (!found) thisObject.state.rows._rows.push(objectRow);
                     else Object.assign(found, objectRow);
 
-                    for (let row of thisObject.state.rows._rows) {
-                        if (!group.members.some(id => (row.type === 99 && row.key === id && row.__vips_group === group)) || (row.type !== 99)) {
-                            let index = thisObject.state.rows._rows.indexOf(row);
-                            // if (index > -1) thisObject.state.rows._rows.splice(index, 1);
-                        }
-                    }
+                    // for (let row of thisObject.state.rows._rows) {
+                    //     if (!group.members.some(id => (row.type === 99 && row.key === id && row.__vips_group === group)) || (row.type !== 99)) {
+                    //         let index = thisObject.state.rows._rows.indexOf(row);
+                    //         if (index > -1) thisObject.state.rows._rows.splice(index, 1);
+                    //     }
+                    // }
                 }
 
                 if (!group.members.length) {
@@ -230,8 +230,6 @@ module.exports = (Plugin, { Api: PluginApi, Utils, CssUtils, WebpackModules, Pat
             for (let row of thisObject.state.rows._rows) {
                 if (row.type === 99 && thisObject.state.section.startsWith('vips-') && row.__vips_group && (thisObject.state.section.substr(5) === row.__vips_group.name)) VIPs.push(row);
             }
-
-            Logger.log('VIPs:', VIPs);
 
             let Row = returnValue.props.children[1].props.children[1].props.children.props.children[0].type
                    || returnValue.props.children[1].props.children[1].props.children[0].type;
