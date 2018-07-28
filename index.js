@@ -168,7 +168,15 @@ module.exports = (Plugin, { Api: PluginApi, Utils, WebpackModules, Patcher, monk
                     }
                 }
 
-                const vipTab = WebpackModules.React.cloneElement(tabbarItems[2], {children: group.name});
+                const vipTab = WebpackModules.React.cloneElement(tabbarItems[2], {
+                    children: group.name,
+                    onClick: event => {
+                        if (event.shiftKey) {
+                            this.removeGroup(group);
+                            // By the time this has been called the section will already have been selected
+                        }
+                    }
+                });
                 vipTab.key = `vips-${group.name}`;
                 tabbarItems.push(vipTab);
             }
